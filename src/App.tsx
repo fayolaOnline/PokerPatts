@@ -1,4 +1,6 @@
 import * as React from "react";
+import "../assets/fonts/BerkshireSwashRegular.ttf";
+import "../assets/fonts/InconsolataRegular.ttf";
 import {
   View,
   Text,
@@ -13,7 +15,7 @@ import { Store } from "./redux/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import SQLite from "react-native-sqlite-storage";
 import { useSelector, useDispatch } from "react-redux";
-// import { setName, setAge, increaseAge } from './redux/actions';
+import { setName, setAge, increaseAge } from "./redux/actions";
 
 const styles = StyleSheet.create({
   container: {
@@ -27,12 +29,13 @@ const styles = StyleSheet.create({
   deckrow: {
     width: 260,
     flexDirection: "row",
-    backgroundColor: "#00000030"
+    backgroundColor: "#00000080"
   },
   scorerow: {
     width: 260,
     flexDirection: "row",
-    justifyContent: "end"
+    justifyContent: "end",
+    fontFamily: "Inconsolata"
   },
   spot: {
     width: 40,
@@ -47,7 +50,8 @@ const styles = StyleSheet.create({
     borderColor: "black"
   },
   spot_value: {
-    fontSize: 20
+    fontSize: 20,
+    fontFamily: "Berkshire Swash"
   },
   spot_suit: {
     fontSize: 20
@@ -109,8 +113,9 @@ function App() {
   // const { name, age } = useSelector(state => state.userReducer);
   // const dispatch = useDispatch();
   const renderCardSpot = ({ item }) => <CardSpot csid={item.csid} />;
+
   for (let _i = 0; _i < 25; _i++) {
-    if (_i == 0) cardSpots = [];
+    if (_i === 0) cardSpots = [];
     cardSpots.push({
       csid: _i.toString(),
       value: null
@@ -125,7 +130,7 @@ function App() {
   return (
     <View style={styles.container}>
       <View style={styles.scorerow}>
-        <Text style={styles.score_text}>Score: 9999 - ??/25 Patts found</Text>
+        <Text style={styles.score_text}>Score: 9900 - ??/25 Patts found</Text>
       </View>
       <View>
         <FlatList
