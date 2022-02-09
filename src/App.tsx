@@ -1,21 +1,30 @@
 import * as React from "react";
+import { useRef } from "react";
 import "../assets/fonts/BerkshireSwashRegular.ttf";
 import "../assets/fonts/InconsolataRegular.ttf";
 import {
+  Animated,
   View,
+  TouchableOpacity,
   Text,
   Button,
+  PanResponder,
   FlatList,
   Alert,
   StatusBar,
-  StyleSheet
+  StyleSheet,
+  ReactNativeComponentTree
 } from "react-native";
-import { Provider } from "react-redux";
-import { Store } from "./redux/store";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import SQLite from "react-native-sqlite-storage";
+// import AsyncStorage from "@react-native-async-storage/async-storage";
+// import SQLite from "react-native-sqlite-storage";
 import { useSelector, useDispatch } from "react-redux";
-import { setName, setAge, increaseAge } from "./redux/actions";
+import {
+  setName,
+  setAge,
+  increaseAge,
+  setCardFacing,
+  flipCard
+} from "./redux/actions";
 
 const styles = StyleSheet.create({
   container: {
@@ -29,45 +38,64 @@ const styles = StyleSheet.create({
   deckrow: {
     width: 260,
     flexDirection: "row",
-    backgroundColor: "#00000080"
+    backgroundColor: "#000000aa"
   },
   scorerow: {
     width: 260,
     flexDirection: "row",
-    justifyContent: "end",
-    fontFamily: "Inconsolata"
+    justifyContent: "space-between"
   },
   spot: {
     width: 40,
     height: 64,
     borderRadius: 2,
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#ffffff10",
     marginVertical: 6,
     marginHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    borderColor: "black"
+    borderColor: "#00000080",
+    borderWidth: 1
   },
-  spot_value: {
-    fontSize: 20,
+  card_value: {
+    fontSize: 25,
     fontFamily: "Berkshire Swash"
   },
-  spot_suit: {
-    fontSize: 20
+  card_suit: {
+    fontSize: 25
+  },
+  card_value_red: {
+    fontSize: 25,
+    fontFamily: "Berkshire Swash",
+    color: "red"
+  },
+  card_suit_red: {
+    fontSize: 25,
+    color: "red"
+  },
+  card_value_black: {
+    fontSize: 25,
+    fontFamily: "Berkshire Swash",
+    color: "black"
+  },
+  card_suit_black: {
+    fontSize: 25,
+    color: "black"
   },
   card: {
     width: 40,
     height: 64,
     borderRadius: 2,
-    backgroundColor: "white",
+    backgroundColor: "#673147",
     marginVertical: 6,
     marginHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    borderColor: "black"
+    borderColor: "#673147",
+    borderWidth: 1
   },
-  deck: {
+  card_red: {
     width: 40,
     height: 64,
     borderRadius: 2,
@@ -76,7 +104,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    borderColor: "black"
+    borderColor: "red",
+    borderWidth: 1
+  },
+  card_black: {
+    width: 40,
+    height: 64,
+    borderRadius: 2,
+    backgroundColor: "white",
+    marginVertical: 6,
+    marginHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    borderColor: "black",
+    borderWidth: 1
+  },
+  deck: {
+    width: 40,
+    height: 64,
+    borderRadius: 2,
+    backgroundColor: "#673147",
+    marginVertical: 6,
+    marginHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    borderColor: "#673147"
   },
   abtn: {
     height: 64,
@@ -89,10 +141,12 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   abtn_text: {
-    fontSize: 30
+    fontSize: 40,
+    fontFamily: "Berkshire Swash"
   },
   score_text: {
-    fontSize: 18
+    fontSize: 20,
+    fontFamily: "Inconsolata"
   },
   emp: {
     backgroundColor: "#77b55a",
@@ -102,17 +156,102 @@ const styles = StyleSheet.create({
 
 let pattSpots = [];
 let cardSpots = [];
-const CardSpot = ({ csid }) => (
-  <View style={styles.spot}>
-    <Text style={styles.spot_value}>{csid}</Text>
-    <Text style={styles.spot_suit}>{"♣"}</Text>
-  </View>
-);
-
+const onPress = () => Alert.alert("Spot has been pressed.");
+const PCard = ({ cid }) => {
+  const suits = ["♣", "♦", "♠", "♥"];
+  const values = [
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "J",
+    "Q",
+    "K",
+    "A"
+  ];
+  let isRed = Math.floor(cid / 13) % 2 == 1;
+  return (
+    <View style={isRed === true ? styles.card_red : styles.card_black}>
+      <Text
+        style={isRed === true ? styles.card_value_red : styles.card_value_black}
+      >
+        {values[cid % 13]}
+      </Text>
+      <Text
+        style={isRed === true ? styles.card_suit_red : styles.card_suit_black}
+      >
+        {suits[Math.floor(cid / 13)]}
+      </Text>
+    </View>
+  );
+};
 function App() {
-  // const { name, age } = useSelector(state => state.userReducer);
-  // const dispatch = useDispatch();
-  const renderCardSpot = ({ item }) => <CardSpot csid={item.csid} />;
+  const { name, age, side } = useSelector((state) => state.userReducer);
+  const dispatch = useDispatch();
+
+  const pan = useRef(new Animated.ValueXY()).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }]),
+      onPanResponderRelease: () => {
+        Animated.spring(pan, { toValue: { x: pan.x, y: pan.y } }).start();
+      }
+    })
+  ).current;
+
+  const panTo = () => {
+    //const pos = ReactNativeComponentTree.getInstanceFromNode( event.currentTarget)._currentElement.props.ValueXY;
+    Animated.spring(pan, { toValue: { x: 0, y: 0 } }).start();
+  };
+  const press = (event, index) => {
+    const ox = -52;
+    const oy = -380;
+    const ax = index % 5;
+    const ay = Math.floor(index / 5);
+    const nx = ox + ax * 52;
+    const ny = oy + ay * 76;
+    //only want to move active card
+    Animated.spring(pan, { toValue: { x: nx, y: ny } }).start();
+    //do gamd state logic
+  };
+  const CardSpot = (props) => {
+    const spotClicked = (e) => {
+      props.press(e, props.csid);
+    };
+    return <TouchableOpacity style={styles.spot} onPress={spotClicked} />;
+  };
+  const toggleCard = useRef(new Animated.Value(1)).current;
+  const fadeIn = () => {
+    // Will change fadeAnim value to 1 in 5 seconds
+    Animated.timing(toggleCard, {
+      toValue: 1,
+      duration: 150
+    }).start();
+  };
+
+  const fadeOut = () => {
+    // Will change fadeAnim value to 0 in 3 seconds
+    Animated.timing(toggleCard, {
+      toValue: 0,
+      duration: 150
+    }).start();
+  };
+  const toggleFade = (val) => {
+    Animated.timing(toggleCard, {
+      toValue: val,
+      duration: 150
+    }).start();
+  };
+  const renderCardSpot = ({ item }) => {
+    return <CardSpot csid={item.csid} press={press} />;
+  };
+  // <CardSpot csid={item.csid} press={this.press}/>;
 
   for (let _i = 0; _i < 25; _i++) {
     if (_i === 0) cardSpots = [];
@@ -130,7 +269,8 @@ function App() {
   return (
     <View style={styles.container}>
       <View style={styles.scorerow}>
-        <Text style={styles.score_text}>Score: 9900 - ??/25 Patts found</Text>
+        <Text style={styles.score_text}>Score: 9900</Text>
+        <Text style={styles.score_text}>??/25 Patts dealt</Text>
       </View>
       <View>
         <FlatList
@@ -143,10 +283,19 @@ function App() {
       </View>
       <View style={styles.deckrow}>
         <View style={styles.deck} />
-        <View style={styles.card} />
-        <View style={styles.abtn}>
+        <Animated.View
+          style={[
+            {
+              transform: [{ translateX: pan.x }, { translateY: pan.y }]
+            }
+          ]}
+          // {...panResponder.panHandlers}
+        >
+          <PCard cid={"51"} />
+        </Animated.View>
+        <TouchableOpacity style={styles.abtn} onPress={fadeOut}>
           <Text style={styles.abtn_text}>Start</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );

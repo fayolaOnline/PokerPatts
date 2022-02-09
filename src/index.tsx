@@ -1,5 +1,7 @@
 import * as React from "react";
 import { View, Text, StyleSheet, AppRegistry } from "react-native";
+import { Provider } from "react-redux";
+import { Store } from "./redux/store";
 import App from "./App";
 
 const styles = StyleSheet.create({
@@ -17,13 +19,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "center"
   },
   statusBarItem: {
     color: "#fff"
   },
   app: {
-    flex: 1, 
+    flex: 1,
     backgroundColor: "#fff"
   }
 });
@@ -35,7 +37,9 @@ const PhoneWindow = (props: any) => (
       <Text style={styles.statusBarItem}>{"4G   ###"}</Text>
     </View>
     <View style={styles.app}>
-      <App />
+      <Provider store={Store}>
+        <App />
+      </Provider>
     </View>
   </View>
 );
